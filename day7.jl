@@ -115,37 +115,23 @@ function Hand(str)
     Hand(ntuple(i->parse_card(str, i), Val(5)))
 end
 function type(hand::Hand)
-    visited = 0u8
     trio = false
     num_pairs = 0u8
 
-    num_joker = 0
-    for j in 1:5
-        num_joker += (hand[j] == 1)
-        visited |= UInt8(hand[j] == 1) << (j-1)
-    end
-    if num_joker == 5
-        return Five_Kind
+    num_joker = count(isone, hand.x)
+    num_joker == 5 && return Five_Kind
+
+    for i in 1:5
+        hand[i] == 1 && continue
+        matches = count(isequal(hand[i]), hand.x)
+        trio |= matches + num_joker == 3
+        num_pairs += matches == 2
+
+        matches + num_joker == 5 && return Five_Kind
+        matches + num_joker == 4 && return Four_Kind
     end
 
-    i = 1+trailing_ones(visited)
-    while i <= 5
-        card = hand[i]
-        count = 0u8
-        for j in 1:5
-            count += card == hand[j]
-            visited |= UInt8(card == hand[j]) << (j-1)
-        end
-        i = 1+trailing_ones(visited)
-
-        if count + num_joker == 5
-            return Five_Kind
-        elseif count + num_joker == 4
-            return Four_Kind
-        end
-        trio |= count + num_joker == 3
-        num_pairs += count == 2
-    end
+    num_pairs >>= 1
     num_pairs += num_joker
 
     if trio & num_pairs == 1
