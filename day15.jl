@@ -149,6 +149,7 @@ end
 #     end
 # end
 
+using Test
 @test 145 == part2("rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7" |> Vector{UInt8})
 @test part2() == 212763
 
