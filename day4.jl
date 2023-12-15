@@ -1,12 +1,10 @@
 function part1(io=eachline("day4.txt"))
     sum(io) do line
-        line_split = split(line)
-        delimiter_idx = findfirst(isequal("|"), line_split)
-        winning_numbers = parse.(Int, @view line_split[3:delimiter_idx-1])
+        _, winners, nums = split(line, r"[:|]")
+        winning_numbers = parse.(Int, split(winners))
 
-        matches = 0
-        for number in line_split[delimiter_idx+1:end]
-            matches += parse(Int, number) in winning_numbers
+        matches = count(split(nums)) do number
+            parse(Int, number) in winning_numbers
         end
         1 << (matches-1)
     end
@@ -27,20 +25,19 @@ function part2(io=eachline("day4.txt"))
     no_of_cards = [1]
 
     sum(enumerate(io)) do (card, line)
-        line_split = split(line)
-        delimiter_idx = findfirst(isequal("|"), line_split)
-        winning_numbers = parse.(Int, @view line_split[3:delimiter_idx-1])
+        _, winners, nums = split(line, r"[:|]")
+        winning_numbers = parse.(Int, split(winners))
 
-        matches = count(@view line_split[delimiter_idx+1:end]) do number
+        matches = count(split(nums)) do number
             parse(Int, number) in winning_numbers
         end
         sizehint!(no_of_cards, card+matches)
         while card+matches > length(no_of_cards)
             push!(no_of_cards, 1)
         end
-        for i in 1:matches
-            no_of_cards[card+i] += no_of_cards[card]
-        end
+
+        no_of_cards[card+1:card+matches] .+= no_of_cards[card]
+        
         no_of_cards[card]
     end
 end
