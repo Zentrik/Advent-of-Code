@@ -115,21 +115,22 @@ function Hand(str)
     Hand(ntuple(i->parse_card(str, i), Val(5)))
 end
 function type(hand::Hand)
-    trio = false
     num_pairs = 0u8
 
     num_joker = count(isone, hand.x)
     num_joker == 5 && return Five_Kind
 
+    max_matches = 0
     for i in 1:5
         hand[i] == 1 && continue
         matches = count(isequal(hand[i]), hand.x)
-        trio |= matches + num_joker == 3
+        max_matches = max(matches, max_matches)
         num_pairs += matches == 2
-
-        matches + num_joker == 5 && return Five_Kind
-        matches + num_joker == 4 && return Four_Kind
     end
+
+    max_matches + num_joker == 5 && return Five_Kind
+    max_matches + num_joker == 4 && return Four_Kind
+    trio = max_matches + num_joker == 3
 
     num_pairs >>= 1
     num_pairs += num_joker
