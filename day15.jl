@@ -83,7 +83,7 @@ function part2(ascii_str::Vector{UInt8})
             c = @inbounds ascii_str[i]
         end
         if @inbounds !isassigned(boxes, idx0+1)
-            boxes[idx0+1] = O(zeros(Int32, 128), Vector{keytype(O)}(), Vector{valtype(O)}(), 0, 0, false)
+            boxes[idx0+1] = O()
         end
 
         val = @inbounds ascii_str[i+1] - '0'u8
@@ -109,10 +109,49 @@ function part2(ascii_str::Vector{UInt8})
     result
 end
 
+# function part2(ascii_str::Vector{UInt8})
+#     O = OrderedDict{typeof(@inbounds @views ascii_str[2:3]), UInt8}
+#     boxes = [O() for _ in  1:256]
+
+#     i = 1
+#     while i <= length(ascii_str)
+#         c = @inbounds ascii_str[i]
+#         start_i = i
+#         idx = 0u8
+#         while c ∉ ('='u8, '-'u8)
+#             idx += c
+#             idx *= 17u8
+
+#             i += 1
+#             c = @inbounds ascii_str[i]
+#         end
+
+#         val = @inbounds ascii_str[i+1] - '0'u8
+#         label = @inbounds @views ascii_str[start_i:i-1]
+
+#         if c == '='u8
+#             boxes[idx+1][label] = val
+#             i += 2
+#         elseif c == '-'u8
+#             delete!(boxes[idx+1], label)
+#             i += 1
+#         end
+
+#         i += 1
+#     end
+
+#     sum(pairs(boxes)) do (box_num, box)
+#         if !isempty(box)
+#             box_num * sum(prod, enumerate(values(box)))
+#         else
+#             0
+#         end
+#     end
+# end
+
 @test 145 == part2("rn=1,cm-,qp=3,cm=2,qp-,pc=4,ot=9,ab=5,pc-,pc=6,ot=7" |> Vector{UInt8})
 @test part2() == 212763
 
-@btime part2($ascii_str)
-
 ascii_str = readline("day15.txt") |> Vector{UInt8}
+@btime part2($ascii_str)
 @profview for _ in 1:10^3 part2(ascii_str) end
