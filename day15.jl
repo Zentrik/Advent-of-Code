@@ -1,7 +1,3 @@
-# struct Literal{T} end
-# Base.:(*)(x, ::Type{Literal{T}}) where {T} = T(x)
-# const u8 = Literal{UInt8}
-
 function part1(io=eachsplit(readline("day15.txt"), ','))
     sum(io) do step
         hash = 0
@@ -20,16 +16,17 @@ function part1_fast(io="day15.txt")
     end |> part1_fast
 end
 
+struct Literal{T} end
+Base.:(*)(x, ::Type{Literal{T}}) where {T} = T(x)
+const u8 = Literal{UInt8}
 function part1_fast(ascii_str::Vector{UInt8})
     result = 0
     i = 1
     while i <= length(ascii_str)
-        hash = 0
+        hash = 0u8
         while i <= length(ascii_str) && @inbounds ascii_str[i] != UInt8(',')
             @inbounds hash += ascii_str[i]
-            hash *= 17
-            hash &= 255
-
+            hash *= 17u8
             i += 1
         end
         result += hash
