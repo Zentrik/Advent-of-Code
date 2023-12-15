@@ -68,68 +68,85 @@ humidity-to-location map:
 
 part1()
 
-function part2(iterator=readlines("day5.txt"))
-    line, iterator = Iterators.peel(iterator)
-    # parsed_seeds = parse.(Int, @view split(line)[2:end])
+function parseline(line)
+    dest_start = 0
+    i = 1
+    while !isspace(line[i])
+        dest_start *= 10
+        dest_start += line[i] - '0'
+        i += 1
+    end
 
-    print = false
+    source_start = 0
+    i += 1
+    while !isspace(line[i])
+        source_start *= 10
+        source_start += line[i] - '0'
+        i += 1
+    end
 
-    keys = UnitRange[]
-    for (start_str, len_str) in Iterators.partition(split(line)[2:end], 2)
+    len = 0
+    i += 1
+    while i <= ncodeunits(line)
+        len *= 10
+        len += line[i] - '0'
+        i += 1
+    end
+
+    dest_start, source_start, len
+end
+
+struct Range
+    x::Int64
+    y::Int64
+end
+function Base.intersect(x::Range, y::Range)
+    Range(max(x.x, y.x), min(x.y, y.y))
+end
+Base.isempty(x::Range) = x.x > x.y
+
+function part2(lines=readlines("day5.txt"))
+    keys = Vector{Range}(undef, 50)
+    resize!(keys, 0)
+    it = lines[1] |> eachsplit |> Iterators.peel |> last
+    for (start_str, len_str) in Iterators.partition(it, 2)
         start = parse(Int, start_str)
         len = parse(Int, len_str)
-        push!(keys, start:start+len-1)
+        push!(keys, Range(start, start+len-1))
     end
-    new_keys = similar(keys, 0)
+    new_keys = similar(keys)
 
-    iterator = Iterators.drop(iterator, 1)
-    while !(Iterators.isdone(iterator) === true || isempty(iterator))
-        iterator = Iterators.drop(iterator, 1)
-        line, iterator = Iterators.peel(iterator)
-
+    lineidx = 2
+    while lineidx <= length(lines)
+        lineidx += 2
         resize!(new_keys, 0)
-        print && println(keys)
-        while !isempty(line)
-            # print && println(line)
-            dest_start, source_start, len = parse.(Int, split(line))
+
+        while lineidx <= length(lines) && !isempty(lines[lineidx])
+            line = lines[lineidx]
+            dest_start, source_start, len = parseline(line)
 
             n = length(keys)
             for _ in 1:n
                 keyrange = popfirst!(keys)
 
-                # print && println(keyrange)
-                left_range = intersect(keyrange, 0:source_start-1)
-                mapped_range = intersect(keyrange, source_start:source_start+len-1) .+ (dest_start - source_start)
-                right_range = intersect(keyrange, source_start+len:last(keyrange))
-                # print && println(left_range)
-                # print && println(mapped_range)
-                # print && println(right_range)
-                # print && println()
+                left_range = Range(keyrange.x, min(keyrange.y, source_start-1))
 
-                if !isempty(left_range)
-                    push!(keys, left_range)
-                end
-                if !isempty(right_range)
-                    push!(keys, right_range)
-                end
-                if !isempty(mapped_range)
-                    push!(new_keys, mapped_range)
-                end
-                # print && println(keys)
+                intersected_range = intersect(keyrange, Range(source_start, source_start+len-1))
+                mapped_range = Range(intersected_range.x + dest_start - source_start, intersected_range.y + dest_start - source_start)
+
+                right_range = intersect(keyrange, Range(source_start+len, keyrange.y))
+
+                !isempty(left_range) && push!(keys, left_range)
+                !isempty(right_range) && push!(keys, right_range)
+                !isempty(mapped_range) && push!(new_keys, mapped_range)
             end
 
-            if Iterators.isdone(iterator) === true || isempty(iterator)
-                break
-            end
-
-            line, iterator = Iterators.peel(iterator)
+            lineidx += 1
         end
-        # print && println(new_keys)
         append!(keys, new_keys)
     end
-    print && println(keys)
 
-    keys |> minimum |> minimum
+    minimum(key->key.x, keys)
 end
 
 part2(split("""seeds: 79 14 55 13
