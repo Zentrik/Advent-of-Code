@@ -96,23 +96,14 @@ function parseline(line)
     dest_start, source_start, len
 end
 
-struct Range
-    x::Int64
-    y::Int64
-end
-function Base.intersect(x::Range, y::Range)
-    Range(max(x.x, y.x), min(x.y, y.y))
-end
-Base.isempty(x::Range) = x.x > x.y
-
 function part2(lines=readlines("day5.txt"))
-    keys = Vector{Range}(undef, 50)
+    keys = Vector{Tuple{Int, Int}}(undef, 500)
     resize!(keys, 0)
     it = lines[1] |> eachsplit |> Iterators.peel |> last
     for (start_str, len_str) in Iterators.partition(it, 2)
         start = parse(Int, start_str)
         len = parse(Int, len_str)
-        push!(keys, Range(start, start+len-1))
+        push!(keys, (start, start+len-1))
     end
     new_keys = similar(keys)
 
@@ -124,29 +115,29 @@ function part2(lines=readlines("day5.txt"))
         while lineidx <= length(lines) && !isempty(lines[lineidx])
             line = lines[lineidx]
             dest_start, source_start, len = parseline(line)
+            source_end = source_start+len-1
 
             n = length(keys)
             for _ in 1:n
-                keyrange = popfirst!(keys)
+                x, y = popfirst!(keys)
 
-                left_range = Range(keyrange.x, min(keyrange.y, source_start-1))
-
-                intersected_range = intersect(keyrange, Range(source_start, source_start+len-1))
-                mapped_range = Range(intersected_range.x + dest_start - source_start, intersected_range.y + dest_start - source_start)
-
-                right_range = intersect(keyrange, Range(source_start+len, keyrange.y))
-
-                !isempty(left_range) && push!(keys, left_range)
-                !isempty(right_range) && push!(keys, right_range)
-                !isempty(mapped_range) && push!(new_keys, mapped_range)
+                if x < source_start
+                    push!(keys, (x, min(y, source_start-1)))
+                end
+                if source_end < y
+                    push!(keys, (max(x, source_end+1), y))
+                end
+                if source_start <= y && x <= source_end
+                    Δ = dest_start - source_start
+                    push!(new_keys, (max(x, source_start)+Δ, min(y, source_end)+Δ))
+                end
             end
-
             lineidx += 1
         end
         append!(keys, new_keys)
     end
 
-    minimum(key->key.x, keys)
+    minimum(first, keys)
 end
 
 part2(split("""seeds: 79 14 55 13
