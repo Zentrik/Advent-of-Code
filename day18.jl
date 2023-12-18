@@ -53,24 +53,97 @@ function part1(io=eachline("day18.txt"))
         end
     end
 
-    interior_blocks = 0
-    position = CartesianIndex(1, 1)
-    interior_matrix = similar(matrix)
-    fill!(interior_matrix, false)
-    for (dir, len) in instructions
-        for _ in 1:len
-            inner_direction = dir_to_idx[1+(dir+inner_rotation)%4]
-            inner_position = position + inner_direction
-            while !matrix[inner_position]
-                interior_blocks += !interior_matrix[inner_position]
-                interior_matrix[inner_position] = true
-                inner_position += inner_direction
-            end
-            position += dir_to_idx[1+dir]
+    display(matrix)
+    # return matrix
+
+    interior_matrix = copy(matrix)
+    for col in 1:size(matrix, 2)-2
+        in_interior = false
+        last_edge = :B # :L, :R, :B : left, right, bottom
+        for row in 1:size(matrix, 1)-1
+            # println(row)
+            # if !matrix[begin+row, begin+col]
+                left = matrix[begin+row-1, begin+col-1]
+                middle = matrix[begin+row-1, begin+col]
+                right = matrix[begin+row-1, begin+col+1]
+                if middle
+                    if left & right
+                        # @assert(!matrix[begin+row, begin+col])
+                        in_interior = !in_interior
+                        last_edge = :B
+                    elseif left
+                        # if last_edge == :B
+                        #     @assert matrix[begin+row, begin+col]
+                        # else
+                        #     @assert !matrix[begin+row, begin+col]
+                        # end
+                        if last_edge == :R
+                            in_interior = !in_interior
+                        end
+                        if last_edge == :B
+                            last_edge = :L
+                        else
+                            last_edge = :B
+                        end
+                    elseif right
+                        # if last_edge == :B
+                        #     @assert matrix[begin+row, begin+col]
+                        # else
+                        #     @assert !matrix[begin+row, begin+col] "$row, $col"
+                        # end
+                        if last_edge == :L
+                            in_interior = !in_interior
+                        end
+                        if last_edge == :B
+                            last_edge = :R
+                        else
+                            last_edge = :B
+                        end
+                    end
+                end
+                interior_matrix[begin+row, begin+col] |= in_interior
+            # end
         end
     end
-    interior_blocks + edge_blocks
+    # return matrix, interior_matrix
+    # display(matrix)
+    # display(interior_matrix)
+    return count(interior_matrix)
 end
+
+part1("""R 6 (#70c710)
+D 5 (#0dc571)
+L 2 (#5713f0)
+D 2 (#d2c081)
+R 2 (#59c680)
+D 2 (#411b91)
+L 5 (#8ceee2)
+U 2 (#caa173)
+L 1 (#1b58a2)
+U 2 (#caa171)
+R 2 (#7807d2)
+U 3 (#a77fa3)
+L 2 (#015232)
+U 2 (#7a21e3)""" |> IOBuffer |> eachline)
+
+using Test
+@test part1("""R 6 (#70c710)
+U 5 (#000000)
+R 2 (#70c710)
+D 10 (#000000)
+L 10 (#000000)
+U 3 (#000000)
+R 2 (#000000)
+U 2 (#000000)""" |> IOBuffer |> eachline) == 77
+
+@test part1("""R 2 (#000000)
+D 1 (#000000)
+R 2 (#000000)
+U 1 (#000000)
+R 2 (#000000)
+D 2 (#000000)
+L 6 (#000000)
+U 2 (#000000)""" |> IOBuffer |> eachline) == 20
 
 @test part1("""R 6 (#70c710)
 D 5 (#0dc571)
@@ -87,4 +160,4 @@ U 3 (#a77fa3)
 L 2 (#015232)
 U 2 (#7a21e3)""" |> IOBuffer |> eachline) == 62
 
-@test part1() == 47319
+@test part1() == 47139
