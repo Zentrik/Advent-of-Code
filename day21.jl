@@ -39,6 +39,26 @@ function bfs(grid, steps)
                 continue
             end
 
+            grid[x, y] == '3' && continue
+            if (steps - steps_taken) % 2 == 0
+                if grid[x, y] == 'O'
+                    continue
+                elseif grid[x, y] == '1'
+                    grid[x, y] = '3'
+                else
+                    grid[x, y] = 'O'
+                    num_garden_plots += 1
+                end
+            else
+                if grid[x, y] == '1'
+                    continue
+                elseif grid[x, y] == 'O'
+                    grid[x, y] = '3'
+                else
+                    grid[x, y] = '1'
+                end
+            end
+
             for dir in ((0, 1), (0, -1), (1, 0), (-1, 0))
                 new_x, new_y = x+dir[1], y+dir[2]
                 push!(next_queue, (new_x, new_y))
@@ -63,4 +83,4 @@ using Test
 .##..##.##.
 ...........""" |> IOBuffer, 6) == 16
 
-part1()
+@test part1() == 3591
