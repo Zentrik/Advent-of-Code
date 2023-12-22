@@ -36,21 +36,9 @@ O.#..O.#.#
 part1()
 
 function calculate_load(input)
-    no_of_rows = size(input)[1]
-    total_load = 0
-
-    for column in eachcol(input)
-        next_free_slot = 1
-        for (row, c) in pairs(column)
-            if c == 'O'
-                total_load += no_of_rows - (next_free_slot - 1)
-                next_free_slot += 1
-            elseif c == '#'
-                next_free_slot = row + 1
-            end
-        end
+    sum(pairs(IndexCartesian(), input)) do (I, c)
+        c == 'O' ? size(input, 1) - (I[1] - 1) : 0
     end
-    total_load
 end
 
 function north_tilt!(grid)
@@ -72,13 +60,30 @@ end
 
 function part2(io=eachline("day14.txt"))
     matrix = stack(io; dims=1)
-    # for _ in 1:1000000000-1
+    seen_matrices = Dict{typeof(matrix), Int}(matrix => 0)
+
+    num_cycles = 1000000000
+
+    local cycles
+    for outer cycles in 1:num_cycles
         for i in 1:4
             @inline north_tilt!(matrix)
-            # display(rotl90(matrix, i-1))
             @inline matrix = rotr90(matrix)
         end
-    # end
+
+        if haskey(seen_matrices, matrix)
+            break
+        end
+
+        seen_matrices[copy(matrix)] = cycles
+    end
+
+    period = cycles - seen_matrices[matrix]
+
+    cycles_rem = (num_cycles - seen_matrices[matrix]) % period
+    cycles_idx = seen_matrices[matrix] + cycles_rem
+    matrix = findfirst(isequal(cycles_idx), seen_matrices)
+
     calculate_load(matrix)
 end
 
