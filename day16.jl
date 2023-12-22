@@ -1,7 +1,7 @@
-N = (-1, 0)
-E = (0, 1)
-S = (1, 0)
-W = (0, -1)
+const N = (-1, 0)
+const E = (0, 1)
+const S = (1, 0)
+const W = (0, -1)
 
 function to_num(dir)
     if dir == N
@@ -86,23 +86,24 @@ function part2(io="day16.txt")
     grid = readlines(io) .|> collect |> x->stack(x; dims=1)
 
     max_energised = 0
+    energised_grid = zeros(UInt8, size(grid)...)
 
     for x in 1:size(grid, 1)
-        energised_grid = zeros(UInt8, size(grid)...)
+        fill!(energised_grid, 0)
         advance_path!(energised_grid, grid, x, 1, E)
         max_energised = max(max_energised, count(!iszero, energised_grid))
 
-        energised_grid = zeros(UInt8, size(grid)...)
+        fill!(energised_grid, 0)
         advance_path!(energised_grid, grid, x, size(grid, 2), W)
         max_energised = max(max_energised, count(!iszero, energised_grid))
     end
 
     for y in 1:size(grid, 1)
-        energised_grid = zeros(UInt8, size(grid)...)
+        fill!(energised_grid, 0)
         advance_path!(energised_grid, grid, 1, y, S)
         max_energised = max(max_energised, count(!iszero, energised_grid))
 
-        energised_grid = zeros(UInt8, size(grid)...)
+        fill!(energised_grid, 0)
         advance_path!(energised_grid, grid, size(grid, 1), y, N)
         max_energised = max(max_energised, count(!iszero, energised_grid))
     end
