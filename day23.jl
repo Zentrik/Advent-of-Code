@@ -95,7 +95,7 @@ function part2(io="day23.txt")
     goal_node_idx = adjacency_list[goal_node_idx][1][1]
 
     # DFS
-    path_mask = fill(false, length(adjacency_list))
+    path_mask = UInt64(0)
     lost_length + dfs_on_compressed_graph(path_mask, idx_to_idx[start_node], 0, goal_node_idx, adjacency_list)
 end
 
@@ -171,18 +171,22 @@ function process_node!(adjacency_list, idx_to_idx, map, node, goal_node, parent_
     end
 end
 
+using LLVM.Interop
 function dfs_on_compressed_graph(path_mask, node, path_length, goal_node, adjacency_list)
     node == goal_node && return path_length
 
-    @inbounds path_mask[node] = true
+    assume(node > 0)
+    assume(node < 64)
+    path_mask |= UInt64(1)<<node
     max_len = 0
     for child in @inbounds adjacency_list[node]
         @inbounds child_node = child[1]
-        @inbounds path_mask[child_node] && continue
+        assume(child_node > 0)
+        assume(child_node < 64)
+        (path_mask & UInt64(1)<<child_node) != 0 && continue
 
         @inbounds max_len = max(max_len, dfs_on_compressed_graph(path_mask, child_node, path_length + child[2], goal_node, adjacency_list))
     end
-    @inbounds path_mask[node] = false
 
     return max_len
 end
