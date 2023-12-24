@@ -89,11 +89,19 @@ function part2(io="day23.txt")
     adjacency_list = NTuple{4, NTuple{2, Int}}[]
     process_node!(adjacency_list, idx_to_idx, map, start_node, goal_node, start_node)
 
-    display(length(adjacency_list))
+    # move goal node up
+    goal_node_idx = idx_to_idx[goal_node]
+    nodes_to_goal_node = count(x->!==(x, (1, 0)), adjacency_list[goal_node_idx])
+    lost_length = 0
+    while nodes_to_goal_node == 1
+        lost_length += adjacency_list[goal_node_idx][1][2]
+        goal_node_idx = adjacency_list[goal_node_idx][1][1]
+        nodes_to_goal_node = count(x->!==(x, (1, 0)), adjacency_list[goal_node_idx])
+    end
 
     # DFS
     path_mask = fill(false, length(adjacency_list))
-    dfs_on_compressed_graph(path_mask, idx_to_idx[start_node], 0, idx_to_idx[goal_node], adjacency_list)
+    lost_length + dfs_on_compressed_graph(path_mask, idx_to_idx[start_node], 0, goal_node_idx, adjacency_list)
 end
 
 function add_child(adjacency_list, idx_to_idx, parent_node, child_node, path_len)
@@ -118,6 +126,7 @@ function process_node!(adjacency_list, idx_to_idx, map, node, goal_node, parent_
 
         if node == goal_node
             add_child(adjacency_list, idx_to_idx, parent_node, node, path_len-1)
+            add_child(adjacency_list, idx_to_idx, node, parent_node, path_len-1)
             break
         end
 
