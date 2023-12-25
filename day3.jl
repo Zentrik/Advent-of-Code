@@ -58,7 +58,7 @@ using Test
 @test part1() == 527144
 
 const CI = CartesianIndex
-function part2(io="day3.txt")
+@views function part2(io="day3.txt")
     schematic = stack(eachline(io); dims = 1)
 
     gear_sum = 0
@@ -88,21 +88,13 @@ function part2(io="day3.txt")
                     end
                 end
 
-                @views startidx = findprev(!isdigit, schematic[(I+dir)[1], :], (I+dir)[2])
-                if isnothing(startidx)
-                    startidx = 1
-                else
-                    startidx += 1
-                end
-                @views endidx = findnext(!isdigit, schematic[(I+dir)[1], :], (I+dir)[2])
-                if isnothing(endidx)
-                    endidx = size(schematic, 2)
-                else
-                    endidx -= 1
-                end
+                startidx = findprev(!isdigit, schematic[(I+dir)[1], :], (I+dir)[2])
+                startidx = isnothing(startidx) ? 1 : startidx + 1
+                endidx = findnext(!isdigit, schematic[(I+dir)[1], :], (I+dir)[2])
+                endidx = isnothing(endidx) ? size(schematic, 2) : endidx - 1
 
                 part_num = 0
-                for digit in @views schematic[(I+dir)[1], startidx:endidx]
+                for digit in schematic[(I+dir)[1], startidx:endidx]
                     part_num *= 10
                     part_num += digit - '0'
                 end
@@ -112,6 +104,7 @@ function part2(io="day3.txt")
             gear_sum += gear_ratio
         end
     end
+
     return gear_sum
 end
 
