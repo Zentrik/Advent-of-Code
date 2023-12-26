@@ -4,33 +4,34 @@ const CI = CartesianIndex
 const dir_to_CI = (CI(-1, 0), CI(0, 1), CI(1, 0), CI(0, -1))
 const dir_to_dirs = ((CI(0, 1), CI(0, -1)), (CI(-1, 0), CI(1, 0)))
 
-function part1(io="day17.txt")
-    map = stack(eachline(io); dims = 1) .|> x->parse(Int, x)
-    pq = PriorityQueue{Tuple{CI{2}, Int}, Int}()
-    visited = fill(typemax(Int), size(map)..., 2)
+function part1(io="day17.txt", mindist=1, maxdist=3)
+    map = stack(eachline(io); dims = 1) .|> x->parse(Int8, x)
+    pq = PriorityQueue{Tuple{CI{2}, Bool}, Int16}()
+    visited = fill(typemax(Int16), size(map)..., 2)
 
-    for dir in 2:3, i ∈ (1, 2, 3)
+    for dir in 2:3, i ∈ mindist:maxdist
         new_idx = CI(1, 1) + dir_to_CI[dir]*i
-        pq[(new_idx, mod1(dir, 2))] = sum(x->map[x], (CI(1, 1) + dir_to_CI[dir]*j for j in 1:i))
+        checkbounds(Bool, map, new_idx) || continue
+        pq[(new_idx, dir==2)] = sum(x->map[x], (CI(1, 1) + dir_to_CI[dir]*j for j in 1:i))
     end
 
     while !isempty(pq)
         key, heat_loss = popfirst!(pq)
         idx, dir = key
 
-        visited_heat_loss = visited[Tuple(idx)..., dir] # get(visited, (idx, dir), typemax(Int))
+        visited_heat_loss = visited[Tuple(idx)..., 1+dir]
         if visited_heat_loss <= heat_loss
             continue
         end
-        visited[Tuple(idx)..., dir] = heat_loss
+        visited[Tuple(idx)..., 1+dir] = heat_loss
 
         idx == CI(size(map)...) && return heat_loss
 
-        for new_dir ∈ dir_to_dirs[dir], i ∈ (1, 2, 3)
+        for new_dir ∈ dir_to_dirs[1+dir], i ∈ mindist:maxdist
             new_idx = idx + new_dir * i
             checkbounds(Bool, map, new_idx) || continue
-            get(pq, (new_idx, mod1(dir+1, 2)), typemax(Int)) >= heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:i)) || continue
-            pq[(new_idx, mod1(dir+1, 2))] = heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:i))
+            get(pq, (new_idx, !dir), typemax(Int16)) >= heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:i)) || continue
+            pq[(new_idx, !dir)] = heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:i))
         end
     end
 
@@ -57,45 +58,7 @@ using Test
 @test part1() == 1195
 
 function part2(io="day17.txt")
-    map = stack(eachline(io); dims = 1) .|> x->parse(Int, x)
-    pq = PriorityQueue{Tuple{CI{2}, Int, Int}, Int}()
-    visited = Dict{Tuple{CI{2}, Int}, Tuple{Int, Int}}()
-
-    for dir in 2:3
-        new_idx = CI(1, 1) + dir_to_CI[dir]*4
-        pq[(new_idx, dir, 4)] = sum(x->map[x], (CI(1, 1) + dir_to_CI[dir]*i for i in 1:4))
-    end
-
-    while !isempty(pq)
-        key, heat_loss = popfirst!(pq)
-        idx, dir, len = key
-
-        idx == CI(size(map)...) && return heat_loss
-
-        visited_len, visited_heat_loss = get(visited, (idx, dir), (typemax(Int), typemax(Int)))
-        if visited_len <= len && visited_heat_loss <= heat_loss
-            continue
-        end
-        visited[(idx, dir)] = (len, heat_loss)
-
-        if len < 10
-            new_idx = idx + dir_to_CI[dir]
-            if checkbounds(Bool, map, new_idx)
-                if get(pq, (new_idx, dir, len+1), typemax(Int)) >= heat_loss + map[new_idx]
-                    pq[(new_idx, dir, len+1)] = heat_loss + map[new_idx]
-                end
-            end
-        end
-        for rot ∈ (-1, 1)
-            new_dir = mod1(dir + rot, 4)
-            new_idx = idx + dir_to_CI[new_dir]*4
-            checkbounds(Bool, map, new_idx) || continue
-            get(pq, (new_idx, new_dir, 4), typemax(Int)) >= heat_loss + sum(x->map[x], (idx + dir_to_CI[new_dir]*i for i in 1:4)) || continue
-            pq[(new_idx, new_dir, 4)] = heat_loss + sum(x->map[x], (idx + dir_to_CI[new_dir]*i for i in 1:4))
-        end
-    end
-
-    return -1
+    part1(io, 4, 10)
 end
 
 using Test
