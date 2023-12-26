@@ -9,11 +9,8 @@ function decrease!(pq::PriorityQueue{K, V}, value, key) where {K,V}
 
     if i != 0
         @inbounds oldvalue = pq.xs[i].second
-        oldvalue > value || return oldvalue
-        pq.xs[i] = Pair{K,V}(key, value)
-        if Base.lt(pq.o, oldvalue, value)
-            DataStructures.percolate_down!(pq, i)
-        else
+        if !Base.lt(pq.o, oldvalue, value)
+            pq.xs[i] = Pair{K,V}(key, value)
             DataStructures.percolate_up!(pq, i)
         end
     else
@@ -22,36 +19,33 @@ function decrease!(pq::PriorityQueue{K, V}, value, key) where {K,V}
     return value
 end
 
+map_val(map) = x -> map[x] & Int8(15)
 function part1(io="day17.txt", mindist=1, maxdist=3)
     map = stack(eachline(io); dims = 1) .|> x->parse(Int8, x)
     pq = PriorityQueue{Tuple{CI{2}, Bool}, Int16}()
-    visited = fill(typemax(Int16), size(map)..., 2)
 
-    for dir in 2:3, i ∈ mindist:maxdist
-        new_idx = CI(1, 1) + dir_to_CI[dir]*i
-        checkbounds(Bool, map, new_idx) || continue
-        pq[(new_idx, dir==2)] = sum(x->map[x], (CI(1, 1) + dir_to_CI[dir]*j for j in 1:i))
-    end
+    pq[(CI(1, 1), false)] = 0
+    pq[(CI(1, 1), true)] = 0
 
     while !isempty(pq)
         key, heat_loss = popfirst!(pq)
         idx, dir = key
 
-        visited_heat_loss = visited[Tuple(idx)..., 1+dir]
-        if visited_heat_loss <= heat_loss
+        if map[idx] & Int8(1)<<(5+dir) != 0
             continue
+        else
+            map[idx] |= Int8(1)<<(5+dir)
         end
-        visited[Tuple(idx)..., 1+dir] = heat_loss
 
         idx == CI(size(map)...) && return heat_loss
 
         for new_dir ∈ dir_to_dirs[1+dir]
             checkbounds(Bool, map, idx + new_dir * mindist) || continue
-            new_heat_loss = heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:mindist-1); init=0)
+            new_heat_loss = heat_loss + sum(map_val(map), (idx + new_dir*j for j in 1:mindist-1); init=Int16(0))
             for i in mindist:maxdist
                 new_idx = idx + new_dir * i
                 checkbounds(Bool, map, new_idx) || break
-                new_heat_loss += map[new_idx]
+                new_heat_loss += map_val(map)(new_idx)
 
                 decrease!(pq, new_heat_loss, (new_idx, !dir))
             end
