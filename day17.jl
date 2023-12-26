@@ -4,6 +4,24 @@ const CI = CartesianIndex
 const dir_to_CI = (CI(-1, 0), CI(0, 1), CI(1, 0), CI(0, -1))
 const dir_to_dirs = ((CI(0, 1), CI(0, -1)), (CI(-1, 0), CI(1, 0)))
 
+function decrease!(pq::PriorityQueue{K, V}, value, key) where {K,V}
+    i = get(pq.index, key, 0)
+
+    if i != 0
+        @inbounds oldvalue = pq.xs[i].second
+        oldvalue > value || return oldvalue
+        pq.xs[i] = Pair{K,V}(key, value)
+        if Base.lt(pq.o, oldvalue, value)
+            DataStructures.percolate_down!(pq, i)
+        else
+            DataStructures.percolate_up!(pq, i)
+        end
+    else
+        push!(pq, key=>value)
+    end
+    return value
+end
+
 function part1(io="day17.txt", mindist=1, maxdist=3)
     map = stack(eachline(io); dims = 1) .|> x->parse(Int8, x)
     pq = PriorityQueue{Tuple{CI{2}, Bool}, Int16}()
@@ -27,11 +45,16 @@ function part1(io="day17.txt", mindist=1, maxdist=3)
 
         idx == CI(size(map)...) && return heat_loss
 
-        for new_dir ∈ dir_to_dirs[1+dir], i ∈ mindist:maxdist
-            new_idx = idx + new_dir * i
-            checkbounds(Bool, map, new_idx) || continue
-            get(pq, (new_idx, !dir), typemax(Int16)) >= heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:i)) || continue
-            pq[(new_idx, !dir)] = heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:i))
+        for new_dir ∈ dir_to_dirs[1+dir]
+            checkbounds(Bool, map, idx + new_dir * mindist) || continue
+            new_heat_loss = heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:mindist-1); init=0)
+            for i in mindist:maxdist
+                new_idx = idx + new_dir * i
+                checkbounds(Bool, map, new_idx) || break
+                new_heat_loss += map[new_idx]
+
+                decrease!(pq, new_heat_loss, (new_idx, !dir))
+            end
         end
     end
 
