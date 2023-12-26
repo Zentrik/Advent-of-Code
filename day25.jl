@@ -2,9 +2,9 @@ function part1(io="day25.txt")
     adjacency_list = Dict{String, Vector{String}}()
     for line in eachline(io)
         parent, children... = split(line, (':', ' '); keepempty=false)
-        append!(get!(adjacency_list, parent, []), children)
+        append!(get!(adjacency_list, string(parent), []), children)
         for child in children
-            push!(get!(adjacency_list, child, []), parent)
+            push!(get!(adjacency_list, string(child), []), parent)
         end
     end
 
@@ -101,3 +101,5 @@ rzs: qnr cmg lsr rsh
 frs: qnr lhk lsr""" |> IOBuffer) == 54
 
 @test part1() == 543036
+
+# @time part1("day25/size-8192.txt")
