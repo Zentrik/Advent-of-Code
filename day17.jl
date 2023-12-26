@@ -2,40 +2,35 @@ using DataStructures
 
 const CI = CartesianIndex
 const dir_to_CI = (CI(-1, 0), CI(0, 1), CI(1, 0), CI(0, -1))
+const dir_to_dirs = ((CI(0, 1), CI(0, -1)), (CI(-1, 0), CI(1, 0)))
 
 function part1(io="day17.txt")
     map = stack(eachline(io); dims = 1) .|> x->parse(Int, x)
-    pq = PriorityQueue{Tuple{CI{2}, Int, Int}, Int}()
+    pq = PriorityQueue{Tuple{CI{2}, Int}, Int}()
+    visited = fill(typemax(Int), size(map)..., 2)
 
-    pq[(CI(1, 1), 2, 0)] = 0
-    visited = Dict{Tuple{CI{2}, Int}, Tuple{Int, Int}}()
+    for dir in 2:3, i ∈ (1, 2, 3)
+        new_idx = CI(1, 1) + dir_to_CI[dir]*i
+        pq[(new_idx, mod1(dir, 2))] = sum(x->map[x], (CI(1, 1) + dir_to_CI[dir]*j for j in 1:i))
+    end
 
     while !isempty(pq)
         key, heat_loss = popfirst!(pq)
-        idx, dir, len = key
+        idx, dir = key
 
-        visited_len, visited_heat_loss = get(visited, (idx, dir), (typemax(Int), typemax(Int)))
-        if visited_len <= len && visited_heat_loss <= heat_loss
+        visited_heat_loss = visited[Tuple(idx)..., dir] # get(visited, (idx, dir), typemax(Int))
+        if visited_heat_loss <= heat_loss
             continue
         end
-        visited[(idx, dir)] = (len, heat_loss)
+        visited[Tuple(idx)..., dir] = heat_loss
 
         idx == CI(size(map)...) && return heat_loss
 
-        if len < 3
-            new_idx = idx + dir_to_CI[dir]
-            if checkbounds(Bool, map, new_idx)
-                if get(pq, (new_idx, dir, len+1), typemax(Int)) >= heat_loss + map[new_idx]
-                    pq[(new_idx, dir, len+1)] = heat_loss + map[new_idx]
-                end
-            end
-        end
-        for rot ∈ (-1, 1)
-            new_dir = mod1(dir + rot, 4)
-            new_idx = idx + dir_to_CI[new_dir]
+        for new_dir ∈ dir_to_dirs[dir], i ∈ (1, 2, 3)
+            new_idx = idx + new_dir * i
             checkbounds(Bool, map, new_idx) || continue
-            get(pq, (new_idx, new_dir, 1), typemax(Int)) >= heat_loss + map[new_idx] || continue
-            pq[(new_idx, new_dir, 1)] = heat_loss + map[new_idx]
+            get(pq, (new_idx, mod1(dir+1, 2)), typemax(Int)) >= heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:i)) || continue
+            pq[(new_idx, mod1(dir+1, 2))] = heat_loss + sum(x->map[x], (idx + new_dir*j for j in 1:i))
         end
     end
 
