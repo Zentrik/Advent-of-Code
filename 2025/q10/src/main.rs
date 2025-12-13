@@ -46,22 +46,23 @@ impl GetAllP1Sols {
     }
 }
 
-fn get_subproblem_joltage(target_joltage: &mut Vec<u16>, buttons_bitmask: &Vec<u16>) -> bool {
-    for &button in buttons_bitmask.iter() {
-        for i in 0..std::mem::size_of_val(&button) * 8 {
-            if (button & (1 << i)) != 0 {
-                if target_joltage[i] == 0 {
-                    return false;
-                }
-                target_joltage[i] -= 1;
+fn get_subproblem_joltage(target_joltage: &mut [u16], buttons_bitmask: &[u16]) -> bool {
+    for &button in buttons_bitmask {
+        let mut b = button;
+        while b != 0 {
+            let tz = b.trailing_zeros() as usize;
+            debug_assert!(tz < target_joltage.len());
+            if target_joltage[tz] == 0 {
+                return false;
             }
+            target_joltage[tz] -= 1;
+            b &= b - 1; // clear lowest set bit
         }
     }
     for j in target_joltage.iter_mut() {
         *j /= 2;
     }
-
-    return true;
+    true
 }
 
 fn solve_p2(
