@@ -1,3 +1,5 @@
+use hashbrown::HashMap;
+
 use itertools::Itertools;
 
 fn solve_p1(
@@ -22,23 +24,40 @@ fn solve_p1(
     None
 }
 
-fn get_all_p1_sols(
-    powerset_of_buttons_bitmask: &Vec<Vec<u16>>,
-    target_lights_bitmask: u16,
-) -> Vec<&Vec<u16>> {
-    let mut all_solutions = Vec::new();
+struct GetAllP1Sols {
+    powerset_of_buttons_bitmask: Vec<Vec<u16>>,
+    cache: HashMap<u16, Vec<Vec<u16>>>,
+}
 
-    for set in powerset_of_buttons_bitmask.iter() {
-        let mut indicator_lights = 0u16;
-        for &button in set.iter() {
-            indicator_lights ^= button;
-        }
-        if indicator_lights == target_lights_bitmask {
-            all_solutions.push(set);
+impl GetAllP1Sols {
+    fn new(powerset_of_buttons_bitmask: Vec<Vec<u16>>) -> Self {
+        Self {
+            powerset_of_buttons_bitmask,
+            cache: HashMap::new(),
         }
     }
 
-    return all_solutions;
+    fn get(&mut self, target_lights_bitmask: u16) -> Vec<Vec<u16>> {
+        if let Some(cached) = self.cache.get(&target_lights_bitmask) {
+            return cached.clone();
+        }
+
+        let mut all_solutions = Vec::new();
+
+        for set in self.powerset_of_buttons_bitmask.iter() {
+            let mut indicator_lights = 0u16;
+            for &button in set.iter() {
+                indicator_lights ^= button;
+            }
+            if indicator_lights == target_lights_bitmask {
+                all_solutions.push(set.clone());
+            }
+        }
+
+        self.cache.insert(target_lights_bitmask, all_solutions);
+
+        return self.cache.get(&target_lights_bitmask).unwrap().clone();
+    }
 }
 
 fn get_subproblem_joltage(target_joltage: &mut Vec<u16>, buttons_bitmask: &Vec<u16>) -> bool {
@@ -59,7 +78,12 @@ fn get_subproblem_joltage(target_joltage: &mut Vec<u16>, buttons_bitmask: &Vec<u
     return true;
 }
 
-fn solve_p2(powerset_of_buttons_bitmask: &Vec<Vec<u16>>, target_joltage: &Vec<u16>) -> u16 {
+fn solve_p2(
+    get_all_p1_sols: &mut GetAllP1Sols,
+    target_joltage: &Vec<u16>,
+    toggled_buttons_so_far: u16,
+    best_solution: u16,
+) -> u16 {
     // We have \sum_j a_ij b_j = j_i (a_ij is the j'th buttons effect on counter i, b_j is number of times button j is pressed, j_i is target joltage at counter i)
     // We solve this mod 2, then solve the remaining problem recursively
     if target_joltage.iter().all(|&j| j == 0) {
@@ -73,14 +97,23 @@ fn solve_p2(powerset_of_buttons_bitmask: &Vec<Vec<u16>>, target_joltage: &Vec<u1
         .sum();
 
     let mut p2_result: u16 = u16::MAX;
-    
-    for mod2_sol in get_all_p1_sols(powerset_of_buttons_bitmask, subtarget_joltage_bitmask) {
+
+    for mod2_sol in get_all_p1_sols.get(subtarget_joltage_bitmask) {
         let mut mut_target_joltage = target_joltage.clone();
         if !get_subproblem_joltage(&mut mut_target_joltage, &mod2_sol) {
             continue;
         }
 
-        let subproblem_soln = solve_p2(powerset_of_buttons_bitmask, &mut_target_joltage);
+        if toggled_buttons_so_far + 2 * mod2_sol.len() as u16 >= best_solution {
+            continue;
+        }
+
+        let subproblem_soln = solve_p2(
+            get_all_p1_sols,
+            &mut_target_joltage,
+            mod2_sol.len() as u16,
+            p2_result,
+        );
         if subproblem_soln == u16::MAX {
             continue;
         }
@@ -133,7 +166,8 @@ fn main() {
             let powerset_of_buttons_bitmask: Vec<Vec<u16>> =
                 buttons_bitmask.into_iter().powerset().collect();
             p1_result += solve_p1(&powerset_of_buttons_bitmask, target_lights_bitmask).unwrap();
-            let _res = solve_p2(&powerset_of_buttons_bitmask, &mut target_joltage);
+            let mut get_all_p1_sols = GetAllP1Sols::new(powerset_of_buttons_bitmask.clone());
+            let _res = solve_p2(&mut get_all_p1_sols, &mut target_joltage, 0, u16::MAX);
             assert!(_res != u16::MAX);
             p2_result += _res as usize;
         }
