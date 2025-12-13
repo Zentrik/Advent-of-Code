@@ -26,7 +26,7 @@ fn solve_p1(
 
 struct GetAllP1Sols {
     powerset_of_buttons_bitmask: Vec<Vec<u16>>,
-    cache: HashMap<u16, Vec<Vec<u16>>>,
+    cache: HashMap<u16, Vec<usize>>,
 }
 
 impl GetAllP1Sols {
@@ -37,21 +37,19 @@ impl GetAllP1Sols {
         }
     }
 
-    fn get(&mut self, target_lights_bitmask: u16) -> &Vec<Vec<u16>> {
+    fn get(&mut self, target_lights_bitmask: u16) -> &Vec<usize> {
         self.cache.entry(target_lights_bitmask).or_insert_with(|| {
-            let mut all_solutions = Vec::new();
-
-            for set in self.powerset_of_buttons_bitmask.iter() {
+            let mut matching_indices = Vec::new();
+            for (idx, set) in self.powerset_of_buttons_bitmask.iter().enumerate() {
                 let mut indicator_lights = 0u16;
                 for &button in set.iter() {
                     indicator_lights ^= button;
                 }
                 if indicator_lights == target_lights_bitmask {
-                    all_solutions.push(set.clone());
+                    matching_indices.push(idx);
                 }
             }
-
-            all_solutions
+            matching_indices
         })
     }
 }
@@ -94,32 +92,25 @@ fn solve_p2(
 
     let mut p2_result: u16 = u16::MAX;
 
-    let solutions_len = get_all_p1_sols.get(subtarget_joltage_bitmask).len();
-    for idx in 0..solutions_len {
-        let mod2_sol = {
-            let sols = get_all_p1_sols.get(subtarget_joltage_bitmask);
-            sols[idx].clone()
-        };
-
+    let solution_indices = get_all_p1_sols.get(subtarget_joltage_bitmask).clone();
+    for idx in solution_indices {
         let mut mut_target_joltage = target_joltage.clone();
-        if !get_subproblem_joltage(&mut mut_target_joltage, &mod2_sol) {
+        let mod2_sol = &get_all_p1_sols.powerset_of_buttons_bitmask[idx];
+        let mod2_len = mod2_sol.len() as u16;
+
+        if !get_subproblem_joltage(&mut mut_target_joltage, mod2_sol) {
             continue;
         }
 
-        if toggled_buttons_so_far + 2 * mod2_sol.len() as u16 >= best_solution {
+        if toggled_buttons_so_far + 2 * mod2_len >= best_solution {
             continue;
         }
 
-        let subproblem_soln = solve_p2(
-            get_all_p1_sols,
-            &mut_target_joltage,
-            mod2_sol.len() as u16,
-            p2_result,
-        );
+        let subproblem_soln = solve_p2(get_all_p1_sols, &mut_target_joltage, mod2_len, p2_result);
         if subproblem_soln == u16::MAX {
             continue;
         }
-        p2_result = p2_result.min(2 * subproblem_soln + mod2_sol.len() as u16);
+        p2_result = p2_result.min(2 * subproblem_soln + mod2_len);
     }
 
     return p2_result;
