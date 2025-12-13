@@ -114,7 +114,7 @@ fn solve_p2(
 }
 
 fn main() {
-    const RUNS: usize = 10;
+    const RUNS: usize = 100;
     let start_time = std::time::Instant::now();
 
     let mut p1_result: usize = 0;
