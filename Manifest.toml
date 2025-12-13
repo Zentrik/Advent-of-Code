@@ -2,7 +2,7 @@
 
 julia_version = "1.11.0-DEV"
 manifest_format = "2.0"
-project_hash = "a75b1e672ccffe44ecf133d7ec091052e3a694dc"
+project_hash = "0854a5884c838432ec63ab1f3876b58eb1479b0d"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -25,6 +25,14 @@ version = "0.5.0"
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
 version = "1.1.0+0"
+
+[[deps.DataStructures]]
+deps = ["InteractiveUtils", "OrderedCollections"]
+git-tree-sha1 = "f3efacd1c49de985fcb9e22a7cdfe709e12dde96"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaCollections/DataStructures.jl"
+uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+version = "0.19.0-DEV"
 
 [[deps.Dates]]
 deps = ["Printf"]

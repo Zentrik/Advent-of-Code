@@ -1,1 +1,6 @@
 *.txt
+target/
+perf.data*
+*.svg
+.vscode
+zig-out
