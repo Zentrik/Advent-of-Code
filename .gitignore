@@ -4,3 +4,4 @@ perf.data*
 *.svg
 .vscode
 zig-out
+*.json.gz

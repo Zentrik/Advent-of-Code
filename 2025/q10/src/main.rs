@@ -3,21 +3,15 @@ use hashbrown::HashMap;
 use itertools::Itertools;
 
 fn solve_p1(
-    powerset_of_buttons_bitmask: &Vec<Vec<u16>>,
+    powerset_of_buttons_bitmask: &Vec<(u16, Vec<u16>)>,
     target_lights_bitmask: u16,
 ) -> Option<usize> {
-    for set in powerset_of_buttons_bitmask.iter() {
-        if set.len() == 0 {
+    for (indicator_lights, set) in powerset_of_buttons_bitmask.iter() {
+        if set.is_empty() {
             continue;
         }
-        let set_len = set.len();
-
-        let mut indicator_lights = 0u16;
-        for &button in set.iter() {
-            indicator_lights ^= button;
-        }
-        if indicator_lights == target_lights_bitmask {
-            return Some(set_len);
+        if *indicator_lights == target_lights_bitmask {
+            return Some(set.len());
         }
     }
 
@@ -25,12 +19,12 @@ fn solve_p1(
 }
 
 struct GetAllP1Sols {
-    powerset_of_buttons_bitmask: Vec<Vec<u16>>,
-    cache: HashMap<u16, Vec<usize>>,
+    powerset_of_buttons_bitmask: Vec<(u16, Vec<u16>)>,
+    cache: HashMap<u16, Vec<usize>>, // indices of subsets matching a mask
 }
 
 impl GetAllP1Sols {
-    fn new(powerset_of_buttons_bitmask: Vec<Vec<u16>>) -> Self {
+    fn new(powerset_of_buttons_bitmask: Vec<(u16, Vec<u16>)>) -> Self {
         Self {
             powerset_of_buttons_bitmask,
             cache: HashMap::new(),
@@ -40,12 +34,10 @@ impl GetAllP1Sols {
     fn get(&mut self, target_lights_bitmask: u16) -> &Vec<usize> {
         self.cache.entry(target_lights_bitmask).or_insert_with(|| {
             let mut matching_indices = Vec::new();
-            for (idx, set) in self.powerset_of_buttons_bitmask.iter().enumerate() {
-                let mut indicator_lights = 0u16;
-                for &button in set.iter() {
-                    indicator_lights ^= button;
-                }
-                if indicator_lights == target_lights_bitmask {
+            for (idx, (indicator_lights, _set)) in
+                self.powerset_of_buttons_bitmask.iter().enumerate()
+            {
+                if *indicator_lights == target_lights_bitmask {
                     matching_indices.push(idx);
                 }
             }
@@ -95,7 +87,7 @@ fn solve_p2(
     let solution_indices = get_all_p1_sols.get(subtarget_joltage_bitmask).clone();
     for idx in solution_indices {
         let mut mut_target_joltage = target_joltage.clone();
-        let mod2_sol = &get_all_p1_sols.powerset_of_buttons_bitmask[idx];
+        let mod2_sol = &get_all_p1_sols.powerset_of_buttons_bitmask[idx].1;
         let mod2_len = mod2_sol.len() as u16;
 
         if !get_subproblem_joltage(&mut mut_target_joltage, mod2_sol) {
@@ -156,8 +148,14 @@ fn main() {
                 }
             }
 
-            let powerset_of_buttons_bitmask: Vec<Vec<u16>> =
-                buttons_bitmask.into_iter().powerset().collect();
+            let powerset_of_buttons_bitmask: Vec<(u16, Vec<u16>)> = buttons_bitmask
+                .into_iter()
+                .powerset()
+                .map(|subset| {
+                    let indicator = subset.iter().fold(0u16, |acc, &b| acc ^ b);
+                    (indicator, subset)
+                })
+                .collect();
             p1_result += solve_p1(&powerset_of_buttons_bitmask, target_lights_bitmask).unwrap();
             let mut get_all_p1_sols = GetAllP1Sols::new(powerset_of_buttons_bitmask);
             let _res = solve_p2(&mut get_all_p1_sols, &target_joltage, 0, u16::MAX);
