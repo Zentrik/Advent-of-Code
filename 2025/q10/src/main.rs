@@ -37,26 +37,22 @@ impl GetAllP1Sols {
         }
     }
 
-    fn get(&mut self, target_lights_bitmask: u16) -> Vec<Vec<u16>> {
-        if let Some(cached) = self.cache.get(&target_lights_bitmask) {
-            return cached.clone();
-        }
+    fn get(&mut self, target_lights_bitmask: u16) -> &Vec<Vec<u16>> {
+        self.cache.entry(target_lights_bitmask).or_insert_with(|| {
+            let mut all_solutions = Vec::new();
 
-        let mut all_solutions = Vec::new();
-
-        for set in self.powerset_of_buttons_bitmask.iter() {
-            let mut indicator_lights = 0u16;
-            for &button in set.iter() {
-                indicator_lights ^= button;
+            for set in self.powerset_of_buttons_bitmask.iter() {
+                let mut indicator_lights = 0u16;
+                for &button in set.iter() {
+                    indicator_lights ^= button;
+                }
+                if indicator_lights == target_lights_bitmask {
+                    all_solutions.push(set.clone());
+                }
             }
-            if indicator_lights == target_lights_bitmask {
-                all_solutions.push(set.clone());
-            }
-        }
 
-        self.cache.insert(target_lights_bitmask, all_solutions);
-
-        return self.cache.get(&target_lights_bitmask).unwrap().clone();
+            all_solutions
+        })
     }
 }
 
@@ -98,7 +94,13 @@ fn solve_p2(
 
     let mut p2_result: u16 = u16::MAX;
 
-    for mod2_sol in get_all_p1_sols.get(subtarget_joltage_bitmask) {
+    let solutions_len = get_all_p1_sols.get(subtarget_joltage_bitmask).len();
+    for idx in 0..solutions_len {
+        let mod2_sol = {
+            let sols = get_all_p1_sols.get(subtarget_joltage_bitmask);
+            sols[idx].clone()
+        };
+
         let mut mut_target_joltage = target_joltage.clone();
         if !get_subproblem_joltage(&mut mut_target_joltage, &mod2_sol) {
             continue;
@@ -124,7 +126,7 @@ fn solve_p2(
 }
 
 fn main() {
-    const RUNS: usize = 1;
+    const RUNS: usize = 10;
     let start_time = std::time::Instant::now();
 
     let mut p1_result: usize = 0;
@@ -166,8 +168,8 @@ fn main() {
             let powerset_of_buttons_bitmask: Vec<Vec<u16>> =
                 buttons_bitmask.into_iter().powerset().collect();
             p1_result += solve_p1(&powerset_of_buttons_bitmask, target_lights_bitmask).unwrap();
-            let mut get_all_p1_sols = GetAllP1Sols::new(powerset_of_buttons_bitmask.clone());
-            let _res = solve_p2(&mut get_all_p1_sols, &mut target_joltage, 0, u16::MAX);
+            let mut get_all_p1_sols = GetAllP1Sols::new(powerset_of_buttons_bitmask);
+            let _res = solve_p2(&mut get_all_p1_sols, &target_joltage, 0, u16::MAX);
             assert!(_res != u16::MAX);
             p2_result += _res as usize;
         }
