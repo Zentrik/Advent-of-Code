@@ -84,13 +84,17 @@ fn solve_p2(
 
     let mut p2_result: u16 = u16::MAX;
 
+    // reuse a single scratch buffer per call to avoid cloning in the loop
+    let mut scratch = vec![0u16; target_joltage.len()];
+
     let solution_indices = get_all_p1_sols.get(subtarget_joltage_bitmask).clone();
     for idx in solution_indices {
-        let mut mut_target_joltage = target_joltage.clone();
+        scratch.copy_from_slice(target_joltage);
+        let mut_target_joltage = &mut scratch;
         let mod2_sol = &get_all_p1_sols.powerset_of_buttons_bitmask[idx].1;
         let mod2_len = mod2_sol.len() as u16;
 
-        if !get_subproblem_joltage(&mut mut_target_joltage, mod2_sol) {
+        if !get_subproblem_joltage(mut_target_joltage, mod2_sol) {
             continue;
         }
 
@@ -98,7 +102,7 @@ fn solve_p2(
             continue;
         }
 
-        let subproblem_soln = solve_p2(get_all_p1_sols, &mut_target_joltage, mod2_len, p2_result);
+        let subproblem_soln = solve_p2(get_all_p1_sols, mut_target_joltage, mod2_len, p2_result);
         if subproblem_soln == u16::MAX {
             continue;
         }
