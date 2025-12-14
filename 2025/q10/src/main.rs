@@ -27,7 +27,11 @@ impl GetAllP1Sols {
     }
 }
 
-fn get_subproblem_joltage(target_joltage: &mut [u16], buttons_bitmask: &[u16], subset_mask: u16) -> bool {
+fn get_subproblem_joltage(
+    target_joltage: &mut [u16],
+    buttons_bitmask: &[u16],
+    subset_mask: u16,
+) -> bool {
     let mut mask = subset_mask;
     while mask != 0 {
         let idx = mask.trailing_zeros() as usize;
@@ -157,7 +161,8 @@ fn main() {
                 }
             }
             if target_lights_bitmask != 0 {
-                max_bit = max_bit.max((u16::BITS - 1 - target_lights_bitmask.leading_zeros()) as usize);
+                max_bit =
+                    max_bit.max((u16::BITS - 1 - target_lights_bitmask.leading_zeros()) as usize);
             }
             let table_size = 1usize << (max_bit + 1);
             let mut solutions_by_mask: Vec<Vec<u16>> = vec![Vec::new(); table_size];
@@ -175,17 +180,10 @@ fn main() {
                 solutions_by_mask[indicator as usize].push(subset_mask);
             }
 
-
             p1_result += solve_p1(&solutions_by_mask, target_lights_bitmask).unwrap();
             let mut memo = HashMap::new();
             let solver = GetAllP1Sols::new(solutions_by_mask, buttons_bitmask);
-            let _res = solve_p2(
-                &solver,
-                &target_joltage,
-                0,
-                u16::MAX,
-                &mut memo,
-            );
+            let _res = solve_p2(&solver, &target_joltage, 0, u16::MAX, &mut memo);
             assert!(_res != u16::MAX);
             p2_result += _res as usize;
         }
