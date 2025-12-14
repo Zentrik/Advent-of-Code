@@ -70,11 +70,16 @@ fn solve_p2(
     target_joltage: &Vec<u16>,
     toggled_buttons_so_far: u16,
     best_solution: u16,
+    memo: &mut HashMap<Vec<u16>, u16>,
 ) -> u16 {
     // We have \sum_j a_ij b_j = j_i (a_ij is the j'th buttons effect on counter i, b_j is number of times button j is pressed, j_i is target joltage at counter i)
     // We solve this mod 2, then solve the remaining problem recursively
     if target_joltage.iter().all(|&j| j == 0) {
         return 0;
+    }
+
+    if let Some(&cached_result) = memo.get(target_joltage) {
+        return cached_result;
     }
 
     let subtarget_joltage_bitmask: u16 = target_joltage
@@ -103,12 +108,14 @@ fn solve_p2(
             continue;
         }
 
-        let subproblem_soln = solve_p2(get_all_p1_sols, mut_target_joltage, mod2_len, p2_result);
+        let subproblem_soln = solve_p2(get_all_p1_sols, mut_target_joltage, mod2_len, p2_result, memo);
         if subproblem_soln == u16::MAX {
             continue;
         }
         p2_result = p2_result.min(2 * subproblem_soln + mod2_len);
     }
+
+    memo.insert(target_joltage.clone(), p2_result);
 
     return p2_result;
 }
@@ -163,7 +170,7 @@ fn main() {
                 .collect();
             p1_result += solve_p1(&powerset_of_buttons_bitmask, target_lights_bitmask).unwrap();
             let mut get_all_p1_sols = GetAllP1Sols::new(powerset_of_buttons_bitmask);
-            let _res = solve_p2(&mut get_all_p1_sols, &target_joltage, 0, u16::MAX);
+            let _res = solve_p2(&mut get_all_p1_sols, &target_joltage, 0, u16::MAX, &mut HashMap::new());
             assert!(_res != u16::MAX);
             p2_result += _res as usize;
         }
