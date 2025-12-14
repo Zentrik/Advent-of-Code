@@ -1,53 +1,37 @@
 use hashbrown::HashMap;
 
-use itertools::Itertools;
-
-fn solve_p1(
-    powerset_of_buttons_bitmask: &Vec<(u16, Vec<u16>)>,
-    target_lights_bitmask: u16,
-) -> Option<usize> {
-    for (indicator_lights, set) in powerset_of_buttons_bitmask.iter() {
-        if set.is_empty() {
-            continue;
-        }
-        if *indicator_lights == target_lights_bitmask {
-            return Some(set.len());
-        }
-    }
-
-    None
+fn solve_p1(solutions_by_mask: &Vec<Vec<u16>>, target_lights_bitmask: u16) -> Option<usize> {
+    let sols = &solutions_by_mask[target_lights_bitmask as usize];
+    sols.iter().map(|mask| mask.count_ones() as usize).min()
 }
 
 struct GetAllP1Sols {
-    powerset_of_buttons_bitmask: Vec<(u16, Vec<u16>)>,
-    cache: HashMap<u16, Vec<usize>>, // indices of subsets matching a mask
+    solutions_by_mask: Vec<Vec<u16>>, // mask -> subset bitmasks (buttons <= 16)
+    buttons_bitmask: Vec<u16>,        // original buttons
 }
 
 impl GetAllP1Sols {
-    fn new(powerset_of_buttons_bitmask: Vec<(u16, Vec<u16>)>) -> Self {
+    fn new(solutions_by_mask: Vec<Vec<u16>>, buttons_bitmask: Vec<u16>) -> Self {
         Self {
-            powerset_of_buttons_bitmask,
-            cache: HashMap::new(),
+            solutions_by_mask,
+            buttons_bitmask,
         }
     }
 
-    fn get(&mut self, target_lights_bitmask: u16) -> &Vec<usize> {
-        self.cache.entry(target_lights_bitmask).or_insert_with(|| {
-            let mut matching_indices = Vec::new();
-            for (idx, (indicator_lights, _set)) in
-                self.powerset_of_buttons_bitmask.iter().enumerate()
-            {
-                if *indicator_lights == target_lights_bitmask {
-                    matching_indices.push(idx);
-                }
-            }
-            matching_indices
-        })
+    fn get(&self, target_lights_bitmask: u16) -> &Vec<u16> {
+        &self.solutions_by_mask[target_lights_bitmask as usize]
+    }
+
+    fn buttons(&self) -> &[u16] {
+        &self.buttons_bitmask
     }
 }
 
-fn get_subproblem_joltage(target_joltage: &mut [u16], buttons_bitmask: &[u16]) -> bool {
-    for &button in buttons_bitmask {
+fn get_subproblem_joltage(target_joltage: &mut [u16], buttons_bitmask: &[u16], subset_mask: u16) -> bool {
+    let mut mask = subset_mask;
+    while mask != 0 {
+        let idx = mask.trailing_zeros() as usize;
+        let button = buttons_bitmask[idx];
         let mut b = button;
         while b != 0 {
             let tz = b.trailing_zeros() as usize;
@@ -56,8 +40,9 @@ fn get_subproblem_joltage(target_joltage: &mut [u16], buttons_bitmask: &[u16]) -
                 return false;
             }
             target_joltage[tz] -= 1;
-            b &= b - 1; // clear lowest set bit
+            b &= b - 1;
         }
+        mask &= mask - 1;
     }
     for j in target_joltage.iter_mut() {
         *j /= 2;
@@ -66,7 +51,7 @@ fn get_subproblem_joltage(target_joltage: &mut [u16], buttons_bitmask: &[u16]) -
 }
 
 fn solve_p2(
-    get_all_p1_sols: &mut GetAllP1Sols,
+    get_all_p1_sols: &GetAllP1Sols,
     target_joltage: &Vec<u16>,
     toggled_buttons_so_far: u16,
     best_solution: u16,
@@ -93,14 +78,13 @@ fn solve_p2(
     // reuse a single scratch buffer per call to avoid cloning in the loop
     let mut scratch = vec![0u16; target_joltage.len()];
 
-    let solution_indices = get_all_p1_sols.get(subtarget_joltage_bitmask).clone();
-    for idx in solution_indices {
+    let solution_masks = get_all_p1_sols.get(subtarget_joltage_bitmask).clone();
+    for subset_mask in solution_masks {
         scratch.copy_from_slice(target_joltage);
         let mut_target_joltage = &mut scratch;
-        let mod2_sol = &get_all_p1_sols.powerset_of_buttons_bitmask[idx].1;
-        let mod2_len = mod2_sol.len() as u16;
+        let mod2_len = subset_mask.count_ones() as u16;
 
-        if !get_subproblem_joltage(mut_target_joltage, mod2_sol) {
+        if !get_subproblem_joltage(mut_target_joltage, get_all_p1_sols.buttons(), subset_mask) {
             continue;
         }
 
@@ -108,7 +92,13 @@ fn solve_p2(
             continue;
         }
 
-        let subproblem_soln = solve_p2(get_all_p1_sols, mut_target_joltage, mod2_len, p2_result, memo);
+        let subproblem_soln = solve_p2(
+            get_all_p1_sols,
+            mut_target_joltage,
+            mod2_len,
+            p2_result,
+            memo,
+        );
         if subproblem_soln == u16::MAX {
             continue;
         }
@@ -117,7 +107,7 @@ fn solve_p2(
 
     memo.insert(target_joltage.clone(), p2_result);
 
-    return p2_result;
+    p2_result
 }
 
 fn main() {
@@ -126,9 +116,9 @@ fn main() {
 
     let mut p1_result: usize = 0;
     let mut p2_result: usize = 0;
+
     for _ in 0..RUNS {
         let input = std::fs::read_to_string("q10.txt").unwrap();
-
         for line in input.lines() {
             let mut parts = line.split_ascii_whitespace();
 
@@ -160,17 +150,42 @@ fn main() {
                 }
             }
 
-            let powerset_of_buttons_bitmask: Vec<(u16, Vec<u16>)> = buttons_bitmask
-                .into_iter()
-                .powerset()
-                .map(|subset| {
-                    let indicator = subset.iter().fold(0u16, |acc, &b| acc ^ b);
-                    (indicator, subset)
-                })
-                .collect();
-            p1_result += solve_p1(&powerset_of_buttons_bitmask, target_lights_bitmask).unwrap();
-            let mut get_all_p1_sols = GetAllP1Sols::new(powerset_of_buttons_bitmask);
-            let _res = solve_p2(&mut get_all_p1_sols, &target_joltage, 0, u16::MAX, &mut HashMap::new());
+            let mut max_bit: usize = 0;
+            for &b in buttons_bitmask.iter() {
+                if b != 0 {
+                    max_bit = max_bit.max((u16::BITS - 1 - b.leading_zeros()) as usize);
+                }
+            }
+            if target_lights_bitmask != 0 {
+                max_bit = max_bit.max((u16::BITS - 1 - target_lights_bitmask.leading_zeros()) as usize);
+            }
+            let table_size = 1usize << (max_bit + 1);
+            let mut solutions_by_mask: Vec<Vec<u16>> = vec![Vec::new(); table_size];
+            solutions_by_mask[0].push(0);
+
+            let total_subsets = 1u16 << buttons_bitmask.len();
+            for subset_mask in 1u16..total_subsets {
+                let mut indicator: u16 = 0;
+                let mut m = subset_mask;
+                while m != 0 {
+                    let b_idx = m.trailing_zeros() as usize;
+                    indicator ^= buttons_bitmask[b_idx];
+                    m &= m - 1;
+                }
+                solutions_by_mask[indicator as usize].push(subset_mask);
+            }
+
+
+            p1_result += solve_p1(&solutions_by_mask, target_lights_bitmask).unwrap();
+            let mut memo = HashMap::new();
+            let solver = GetAllP1Sols::new(solutions_by_mask, buttons_bitmask);
+            let _res = solve_p2(
+                &solver,
+                &target_joltage,
+                0,
+                u16::MAX,
+                &mut memo,
+            );
             assert!(_res != u16::MAX);
             p2_result += _res as usize;
         }
