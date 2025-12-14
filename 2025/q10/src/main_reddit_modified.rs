@@ -12,24 +12,23 @@ fn parse_joltage_str(joltage_str: &str) -> [u16; 16] {
     joltages
 }
 
-fn parse_button_str(button_str: &str) -> [u16; 16] {
+fn parse_button_str(button_str: &str) -> u16 {
     let button_str = &button_str[1..button_str.len() - 1];
-    let mut button = [0; 16];
-    button_str
+    return button_str
         .split(',')
         .map(|sub| sub.as_bytes()[0] - b'0')
-        .for_each(|i| button[i as usize] = 1);
-    button
+        .map(|i| 1 << i)
+        .sum();
 }
 
-fn parse_line(line: &str, buttons_vec: &mut Vec<[u16; 16]>) -> [u16; 16] {
-    buttons_vec.clear();
-    let mut parts = line.split(" ");
+fn parse_line(line: &str, buttons_as_bitmask: &mut Vec<u16>) -> [u16; 16] {
+    buttons_as_bitmask.clear();
+    let mut parts = line.split_ascii_whitespace();
     let mut joltages = [0; 16];
     _ = parts.next(); // skip lights
     while let Some(s) = parts.next() {
-        if s.contains("(") {
-            buttons_vec.push(parse_button_str(s));
+        if s.as_bytes()[0] as char == '(' {
+            buttons_as_bitmask.push(parse_button_str(s));
         } else {
             joltages = parse_joltage_str(s);
         }
@@ -45,26 +44,28 @@ fn get_odd_mask(slice: [u16; 16]) -> usize {
 }
 
 fn fill_mask_to_diffs_map(
-    mask_to_diffs: &mut [Vec<(usize, [u16; 16])>; 1024],
-    buttons: &Vec<[u16; 16]>,
-    buttons_masks: &mut Vec<usize>,
+    mask_to_diffs: &mut [Vec<(u16, [u16; 16])>; 1024],
+    buttons_masks: &mut Vec<u16>,
 ) {
+    // clear existing map
+    for v in mask_to_diffs.iter_mut() {
+        v.clear();
+    }
+
     fn backtrack<'a>(
-        mask_to_diffs: &mut [Vec<(usize, [u16; 16])>; 1024],
-        buttons: &'a Vec<[u16; 16]>,
-        buttons_masks: &mut Vec<usize>,
+        mask_to_diffs: &mut [Vec<(u16, [u16; 16])>; 1024],
+        buttons_masks: &mut Vec<u16>,
         button_idx: usize,
-        num_pressed: usize,
+        num_pressed: u16,
         diff: [u16; 16],
-        mask: usize,
+        mask: u16,
     ) {
-        if button_idx == buttons.len() {
-            mask_to_diffs[mask].push((num_pressed, diff.clone()))
+        if button_idx == buttons_masks.len() {
+            mask_to_diffs[mask as usize].push((num_pressed, diff.clone()))
         } else {
             // case 1, don't choose this button
             backtrack(
                 mask_to_diffs,
-                buttons,
                 buttons_masks,
                 button_idx + 1,
                 num_pressed,
@@ -74,13 +75,17 @@ fn fill_mask_to_diffs_map(
 
             // case 2: choose this button
             let mut new_diff = diff.clone();
-            for i in 0..16 {
-                new_diff[i] += buttons[button_idx][i];
+
+            let mut b = buttons_masks[button_idx];
+            while b != 0 {
+                let tz = b.trailing_zeros() as usize;
+                new_diff[tz] += 1;
+                b &= b - 1;
             }
+
             let new_mask = mask ^ buttons_masks[button_idx];
             backtrack(
                 mask_to_diffs,
-                buttons,
                 buttons_masks,
                 button_idx + 1,
                 num_pressed + 1,
@@ -90,34 +95,28 @@ fn fill_mask_to_diffs_map(
         }
     }
 
-    // clear existing map
-    for v in mask_to_diffs.iter_mut() {
-        v.clear();
-    }
-
-    // create button masks
-    buttons_masks.clear();
-    for button in buttons {
-        buttons_masks.push(get_odd_mask(*button));
-    }
-
     // backtrack to fill
-    backtrack(mask_to_diffs, &buttons, buttons_masks, 0, 0, [0; 16], 0);
+    backtrack(mask_to_diffs, buttons_masks, 0, 0, [0; 16], 0);
 }
 
 fn dfs(
-    memo: &mut FxHashMap<[u16; 16], usize>,
-    mask_to_diffs: &[Vec<(usize, [u16; 16])>; 1024],
+    memo: &mut FxHashMap<[u16; 16], u16>,
+    mask_to_diffs: &[Vec<(u16, [u16; 16])>; 1024],
     joltages: [u16; 16],
-) -> usize {
+    len_so_far: u16,
+    best_solution: u16,
+) -> u16 {
     if joltages.iter().all(|x| *x == 0) {
         0
     } else if let Some(res) = memo.get(&joltages) {
         *res
     } else {
         let mask = get_odd_mask(joltages);
-        let mut best = 99999;
+        let mut best = u16::MAX;
         for (num_pressed, diff) in &mask_to_diffs[mask] {
+            if len_so_far + 2 * *num_pressed >= best_solution {
+                continue;
+            }
             if (0..16).any(|i| diff[i] > joltages[i]) {
                 continue;
             }
@@ -125,7 +124,9 @@ fn dfs(
             for i in 0..16 {
                 next_joltages[i] = (joltages[i] - diff[i]) / 2;
             }
-            best = best.min(num_pressed + 2 * dfs(memo, mask_to_diffs, next_joltages))
+            let subproblem_soln =
+                dfs(memo, mask_to_diffs, next_joltages, len_so_far + 2 * *num_pressed, best_solution);
+            best = best.min(subproblem_soln.saturating_mul(2).saturating_add(*num_pressed));
         }
         memo.insert(joltages, best);
         best
@@ -134,17 +135,16 @@ fn dfs(
 
 fn solve_line(
     line: &str,
-    memo: &mut FxHashMap<[u16; 16], usize>,
-    mask_to_diffs: &mut [Vec<(usize, [u16; 16])>; 1024],
-    buttons_vec: &mut Vec<[u16; 16]>,
-    buttons_masks: &mut Vec<usize>,
+    memo: &mut FxHashMap<[u16; 16], u16>,
+    mask_to_diffs: &mut [Vec<(u16, [u16; 16])>; 1024],
+    buttons_as_bitmask: &mut Vec<u16>,
 ) -> usize {
-    let joltages = parse_line(line, buttons_vec);
+    let joltages = parse_line(line, buttons_as_bitmask);
 
-    fill_mask_to_diffs_map(mask_to_diffs, buttons_vec, buttons_masks);
+    fill_mask_to_diffs_map(mask_to_diffs, buttons_as_bitmask);
     memo.clear();
 
-    dfs(memo, &mask_to_diffs, joltages)
+    dfs(memo, &mask_to_diffs, joltages, 0, u16::MAX) as usize
 }
 
 fn main() {
@@ -153,26 +153,23 @@ fn main() {
     let mut result: usize = 0;
 
     for _ in 0..RUNS {
-        let mut memo = FxHashMap::default();
-        let mut mask_to_diffs = [const { Vec::new() }; 1024];
-        let mut buttons_vec = Vec::new();
-        let mut buttons_masks = Vec::new();
+    let mut memo = FxHashMap::default();
+    let mut mask_to_diffs = [const { Vec::new() }; 1024];
+    let mut buttons_as_bitmask = Vec::new();
 
-        let file_content = std::fs::read_to_string("q10.txt").unwrap();
-        result += file_content
-            .lines()
-            .map(|line| {
-                solve_line(
-                    line,
-                    &mut memo,
-                    &mut mask_to_diffs,
-                    &mut buttons_vec,
-                    &mut buttons_masks,
-                )
-            })
-            .sum::<usize>();
+    let file_content = std::fs::read_to_string("q10.txt").unwrap();
+    result += file_content
+        .lines()
+        .map(|line| {
+            solve_line(
+                line,
+                &mut memo,
+                &mut mask_to_diffs,
+                &mut buttons_as_bitmask,
+            )
+        })
+        .sum::<usize>();
     }
-
     let execution_time = start.elapsed();
     println!("Answer: {:?}", result / RUNS);
     println!("Execution time: {:?}", execution_time / RUNS as u32)
