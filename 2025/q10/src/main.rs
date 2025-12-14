@@ -114,6 +114,76 @@ fn solve_p2(
     p2_result
 }
 
+
+fn solve_line(line: &str) -> (usize, usize) {
+    let mut parts = line.split_ascii_whitespace();
+
+    let target_lights_str = parts.next().unwrap();
+    let target_lights_str = &target_lights_str[1..target_lights_str.len() - 1];
+
+    let target_lights_bitmask: u16 = target_lights_str
+        .chars()
+        .enumerate()
+        .map(|(i, c)| if c == '#' { 1 << i } else { 0 })
+        .sum();
+
+    let mut buttons_bitmask: Vec<u16> = Vec::new();
+    let mut target_joltage: Vec<u16> = Vec::new();
+    for button in parts {
+        if button.as_bytes()[0] as char == '{' {
+            for joltage_str in button[1..button.len() - 1].split(',') {
+                let joltage: u16 = joltage_str.parse().unwrap();
+                target_joltage.push(joltage);
+            }
+        } else {
+            let button_str = &button[1..button.len() - 1];
+            let button_bitmask: u16 = button_str
+                .split(',')
+                .map(|s| s.parse::<u16>().unwrap())
+                .map(|i| 1 << i)
+                .sum();
+            buttons_bitmask.push(button_bitmask);
+        }
+    }
+
+    let mut max_bit: usize = 0;
+    for &b in buttons_bitmask.iter() {
+        if b != 0 {
+            max_bit = max_bit.max((u16::BITS - 1 - b.leading_zeros()) as usize);
+        }
+    }
+    if target_lights_bitmask != 0 {
+        max_bit =
+            max_bit.max((u16::BITS - 1 - target_lights_bitmask.leading_zeros()) as usize);
+    }
+    let table_size = 1usize << (max_bit + 1);
+    let mut solutions_by_mask: Vec<Vec<u16>> = vec![Vec::new(); table_size];
+    solutions_by_mask[0].push(0);
+
+    let total_subsets = 1u16 << buttons_bitmask.len();
+    for subset_mask in 1u16..total_subsets {
+        let mut indicator: u16 = 0;
+        let mut m = subset_mask;
+        while m != 0 {
+            let b_idx = m.trailing_zeros() as usize;
+            indicator ^= buttons_bitmask[b_idx];
+            m &= m - 1;
+        }
+        solutions_by_mask[indicator as usize].push(subset_mask);
+    }
+
+    let p1_result = solve_p1(&solutions_by_mask, target_lights_bitmask).unwrap();
+
+    let mut memo = HashMap::new();
+    let solver = GetAllP1Sols::new(solutions_by_mask, buttons_bitmask);
+    let _res = solve_p2(&solver, &target_joltage, 0, u16::MAX, &mut memo);
+    assert!(_res != u16::MAX);
+    let p2_result = _res as usize;
+
+    return (p1_result, p2_result);
+}
+
+
 fn main() {
     const RUNS: usize = 100;
     let start_time = std::time::Instant::now();
@@ -122,70 +192,13 @@ fn main() {
     let mut p2_result: usize = 0;
 
     for _ in 0..RUNS {
-        let input = std::fs::read_to_string("q10.txt").unwrap();
+        let input: String = std::fs::read_to_string("q10.txt").unwrap();
         for line in input.lines() {
-            let mut parts = line.split_ascii_whitespace();
-
-            let target_lights_str = parts.next().unwrap();
-            let target_lights_str = &target_lights_str[1..target_lights_str.len() - 1];
-
-            let target_lights_bitmask: u16 = target_lights_str
-                .chars()
-                .enumerate()
-                .map(|(i, c)| if c == '#' { 1 << i } else { 0 })
-                .sum();
-
-            let mut buttons_bitmask: Vec<u16> = Vec::new();
-            let mut target_joltage: Vec<u16> = Vec::new();
-            for button in parts {
-                if button.as_bytes()[0] as char == '{' {
-                    for joltage_str in button[1..button.len() - 1].split(',') {
-                        let joltage: u16 = joltage_str.parse().unwrap();
-                        target_joltage.push(joltage);
-                    }
-                } else {
-                    let button_str = &button[1..button.len() - 1];
-                    let button_bitmask: u16 = button_str
-                        .split(',')
-                        .map(|s| s.parse::<u16>().unwrap())
-                        .map(|i| 1 << i)
-                        .sum();
-                    buttons_bitmask.push(button_bitmask);
-                }
-            }
-
-            let mut max_bit: usize = 0;
-            for &b in buttons_bitmask.iter() {
-                if b != 0 {
-                    max_bit = max_bit.max((u16::BITS - 1 - b.leading_zeros()) as usize);
-                }
-            }
-            if target_lights_bitmask != 0 {
-                max_bit =
-                    max_bit.max((u16::BITS - 1 - target_lights_bitmask.leading_zeros()) as usize);
-            }
-            let table_size = 1usize << (max_bit + 1);
-            let mut solutions_by_mask: Vec<Vec<u16>> = vec![Vec::new(); table_size];
-            solutions_by_mask[0].push(0);
-
-            let total_subsets = 1u16 << buttons_bitmask.len();
-            for subset_mask in 1u16..total_subsets {
-                let mut indicator: u16 = 0;
-                let mut m = subset_mask;
-                while m != 0 {
-                    let b_idx = m.trailing_zeros() as usize;
-                    indicator ^= buttons_bitmask[b_idx];
-                    m &= m - 1;
-                }
-                solutions_by_mask[indicator as usize].push(subset_mask);
-            }
-
-            p1_result += solve_p1(&solutions_by_mask, target_lights_bitmask).unwrap();
-            let mut memo = HashMap::new();
-            let solver = GetAllP1Sols::new(solutions_by_mask, buttons_bitmask);
-            let _res = solve_p2(&solver, &target_joltage, 0, u16::MAX, &mut memo);
-            assert!(_res != u16::MAX);
-            p2_result += _res as usize;
+            let (_p1_result, _p2_result) = solve_line(line);
+            p1_result += _p1_result;
+            p2_result += _p2_result;
+            assert_eq!(_p1_result, 514);
+            assert_eq!(_p2_result, 21824);
         }
     }
     println!("Time per run: {:?}", start_time.elapsed() / RUNS as u32);
