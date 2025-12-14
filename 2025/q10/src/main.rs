@@ -114,7 +114,6 @@ fn solve_p2(
     p2_result
 }
 
-
 fn solve_line(line: &str) -> (usize, usize) {
     let mut parts = line.split_ascii_whitespace();
 
@@ -153,8 +152,7 @@ fn solve_line(line: &str) -> (usize, usize) {
         }
     }
     if target_lights_bitmask != 0 {
-        max_bit =
-            max_bit.max((u16::BITS - 1 - target_lights_bitmask.leading_zeros()) as usize);
+        max_bit = max_bit.max((u16::BITS - 1 - target_lights_bitmask.leading_zeros()) as usize);
     }
     let table_size = 1usize << (max_bit + 1);
     let mut solutions_by_mask: Vec<Vec<u16>> = vec![Vec::new(); table_size];
@@ -183,7 +181,6 @@ fn solve_line(line: &str) -> (usize, usize) {
     return (p1_result, p2_result);
 }
 
-
 fn main() {
     const RUNS: usize = 100;
     let start_time = std::time::Instant::now();
@@ -194,13 +191,14 @@ fn main() {
     for _ in 0..RUNS {
         let input: String = std::fs::read_to_string("q10.txt").unwrap();
         for line in input.lines() {
-            let (_p1_result, _p2_result) = solve_line(line);
-            p1_result += _p1_result;
-            p2_result += _p2_result;
-            assert_eq!(_p1_result, 514);
-            assert_eq!(_p2_result, 21824);
+            let (line_p1_result, line_p2_result) = solve_line(line);
+            p1_result += line_p1_result;
+            p2_result += line_p2_result;
         }
     }
     println!("Time per run: {:?}", start_time.elapsed() / RUNS as u32);
     println!("Part 1: {}, Part 2: {}", p1_result / RUNS, p2_result / RUNS);
+
+    assert_eq!(p1_result / RUNS, 514);
+    assert_eq!(p2_result / RUNS, 21824);
 }
