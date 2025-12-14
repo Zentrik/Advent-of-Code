@@ -1,0 +1,18 @@
+cargo-features = ["profile-rustflags"]
+
+[package]
+name = "q11"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bumpalo = { version = "3.19.0", features = ["collections"] }
+hashbrown = "0.16.1"
+memoize = "0.5.1"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+rustflags = ["-C", "target-cpu=native"]
+opt-level = 3
+debug = 2
